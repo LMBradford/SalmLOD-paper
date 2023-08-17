@@ -1,0 +1,1 @@
+This repo holds the code used in Bradford et al.'s *Limit of detection of Salmonella ser. Enteritidis using culture-based versus culture-independent diagnostic approaches*.
