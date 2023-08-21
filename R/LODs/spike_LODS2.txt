@@ -1,0 +1,15 @@
+Matrix	Method	Condition	LOD50	CI_Lower	CI_Upper
+Caecal contents	Culture	Enriched	102.738	25.911	407.354
+Caecal contents	qPCR-Cq40	Enriched	50.412	12.715	199.868
+Caecal contents	qPCR-Cq35	Enriched	283.947	78.531	1026.681
+Caecal contents	Shotgun	Enriched	283.947	78.531	1026.681
+Caecal contents	qPCR-Cq40	Unenriched	1711.264	465.691	6288.347
+Caecal contents	qPCR-Cq35	Unenriched	1.7E+04	4656.905	6.3E+04
+Caecal contents	Shotgun	Unenriched	1.8E+04	4944.507	6.4E+04
+Feed	Culture	Enriched	0.047	0.017	0.135
+Feed	qPCR-Cq40	Enriched	0.074	0.024	0.228
+Feed	qPCR-Cq35	Enriched	0.074	0.024	0.228
+Feed	16S	Enriched	0.074	0.024	0.228
+Feed	16S	Unenriched	216.799	58.998	796.666
+Feed	qPCR-Cq40	Unenriched	21.680	5.900	79.667
+Feed	qPCR-Cq35	Unenriched	216.799	58.998	796.666

@@ -1,0 +1,279 @@
+---
+title: "SalmonellaLOD"
+author: "Lauren Bradford"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+# Load packages
+```{r}
+#General
+library(tidyverse)
+library(reshape2)
+#Formatting plots
+library(egg)
+library(scales)
+library(ggpubr)
+#Directory management
+library(here)
+```
+
+# Limits of detection
+## Import data
+Data from Wilrich and Wilrich Excel output.
+```{r}
+tablod <- read.table(here("R","LODs","spike_LODS2.txt"), sep = "\t", header = TRUE )
+```
+
+## Plot for publication
+Error bars are lower and upper confidence intervals from Wilrich LOD calculations
+```{r}
+method_order2 = c("Culture","qPCR-Cq40","qPCR-Cq35","Shotgun","16S")
+
+Fig_LOD2 <- ggplot(data=tablod, aes(x=Method, y=LOD50, shape=Condition, fill=Condition)) + 
+  geom_point(aes(x=factor(Method, level=method_order2)), size=3) +
+  scale_shape_manual(values = c(21,24)) +
+  scale_fill_manual(values=c("#474747","#FFFFFF")) + 
+  facet_wrap(~Matrix,
+             scales = "free_x") + 
+  geom_errorbar(aes(ymin=CI_Lower,ymax=CI_Upper),
+                width = 0.5) +
+  scale_y_log10(labels = label_log(),
+                breaks=c(0,0.01,0.1,1,10,100,1000,10000,100000,1000000)) + 
+  theme_bw() +
+  theme(text = element_text(size = 12),
+        axis.text.x =  element_text(angle = 45, vjust = 1, hjust = 1) ) +
+  ylab("LOD50 (CFU/g)")
+```
+
+## Export figure
+```{r}
+ggsave("Fig_LOD_qPCRzones.png", Fig_LOD2, path = here("R"), width = 16, height = 10, units = "cm")
+```
+
+
+# Host read percent
+Data from shotgun sequencing analysis summary table.
+
+## Import data
+```{r}
+host <- read.table(here("R","salmspike_perchost.txt"), sep = "\t", header = TRUE)
+```
+
+```{r}
+fig_host <- ggplot(host, aes(x=Matrix, y=Perc_host, fill=fct_rev(Condition))) + 
+  geom_boxplot() +
+  scale_fill_manual(values = c("white","#474747")) +
+  ylim(0,1) +
+    theme_bw() +
+  labs(y="Percent host reads",
+       fill="Condition")
+```
+
+
+## Export figure
+```{r}
+ggsave("Fig_host.png", fig_host, path = here("R"), width = 12, height = 7, units = "cm")
+```
+
+
+# qPCR
+## Import Cq values table
+```{r}
+qpcr <- read.table(here("R","qPCR","salmspike_qPCR-summary.txt"), header= TRUE)
+
+qpcr$Spiked_cells <- as.factor(qpcr$Spiked_cells)
+qpcr$Gene <- as.factor(qpcr$Gene)
+
+```
+
+Set no amplification values (currently set to 45) to NA instead.
+```{r}
+qpcr$Cq[qpcr$Cq == 45] <- NA
+```
+
+## Plot Cq values
+```{r}
+p <- ggplot(qpcr, aes(x=factor(Spiked_cells), y=Cq)) + 
+  geom_point(aes(fill=Condition, shape=Gene), size=3, position=position_dodge(width = 0.2)) +
+  facet_wrap(~Matrix, ncol = 2, scales = "free_x") +
+#Axis limits  
+  ylim(0,45)
+```
+
+```{r}
+p_pub <- p +
+#Change shapes and colors
+  scale_shape_manual(values = c(22,23)) +
+  scale_fill_manual(values=c("#474747","#FFFFFF")) + 
+  guides(fill = guide_legend(override.aes = list(shape = 21))) +
+#Change theme, axis labels and fonts
+  theme_bw() +
+  labs(x="Salmonella CFU spiked") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        legend.position = 'right', 
+        strip.text.x = element_text(size = 10))
+```
+
+Add color blocks for 35-40 and 40+ Cq values
+```{r}
+p_pub2 <- p_pub + geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = 35, ymax = 40),
+                  fill = "lightgrey") +
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = 40, ymax = 45),
+                  fill = "darkgrey") + 
+  geom_point(aes(fill=Condition, shape=Gene), size=3, position=position_dodge(width = 0.2))
+#Re-plot geom_point so points are on top of grey boxes
+```
+
+
+## Import copies per ng table
+```{r}
+cpn <- read.table(here("R","qPCR","salmspike_qPCR-copiesperng-summary.txt"), header= TRUE)
+
+cpn$Spikecellsperg <- as.factor(cpn$Spikecellsperg)
+cpn$gene <- as.factor(cpn$gene)
+
+cpn["copiesperng"][cpn["copiesperng"] == 0] <- NA
+
+```
+
+## Plot copies per ng
+```{r}
+p_cpn <- ggplot(cpn, aes(x=Spikecellsperg, y=copiesperng)) + 
+  geom_point(aes(fill=Treatment, shape=gene), size=3, position=position_dodge(width = 0.2)) +
+  facet_wrap(~Matrix, ncol = 2, scales = "free_x") +
+#  scale_y_log10() +
+  scale_y_continuous(trans='log10', labels = label_log(digits = 2)) +
+#Change shapes and colors
+  scale_shape_manual(values = c(22,23)) +
+  scale_fill_manual(values=c("#474747","#FFFFFF")) + 
+  guides(fill = guide_legend(override.aes = list(shape = 21))) +
+  theme_bw() +
+  labs(x="Salmonella CFU spiked",
+       y="Copies per ng DNA") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        legend.position = 'right', 
+        strip.text.x = element_text(size = 10))
+
+```
+
+# Combine Cq and copies per ng plots
+```{r}
+p_qpcrcombo <- ggarrange(p_pub2 +
+            theme(axis.title.x = element_blank(),
+                  axis.text.x = element_blank()), 
+          p_cpn +
+            theme(strip.background = element_blank(),
+                  strip.text.x = element_blank()),
+          nrow = 2,
+          ncol = 1,
+          common.legend = TRUE, legend="bottom",
+          align = "v",
+          labels = c("A","B"))
+```
+
+## Export figure
+```{r}
+ggsave("Fig_qPCR_combo.png", p_qpcrcombo, path = here("R"), width = 18, height = 18, units = "cm")
+```
+
+# Naturally contaminated samples
+## Import detection data
+```{r}
+nc <- read.table(here("R","NaturallyContaminated","natcontam_bysample2.txt"), sep = "\t", header = TRUE )
+```
+
+Subset and melt
+```{r}
+nc.sub = subset(nc, select = c('Sample_number','Matrix','Culture','qPCR','V3V4.16S'))
+nc.sub <- melt(nc.sub, id.vars = c("Matrix","Sample_number"))
+```
+
+## Plot detection in Naturally Contaminated samples
+With differentiation between qPCR positives <35 Cq and 35-40 Cq.
+```{r}
+fig_nc <- ggplot(nc.sub, aes(variable, Sample_number, fill=as.factor(value))) +
+  geom_tile(color = "white",
+            lwd = 1,
+            linetype = 1) +
+  facet_grid(~Matrix) +
+  scale_fill_manual(labels = c("Negative","Positive (Cq35-40)", "Positive (Cq<35)"), values = c("#E5E4E2","#899499","black")) +
+  scale_y_reverse(breaks=c(seq(1,56, by=1))) +
+  labs(fill = "Salmonella \ndetection") +
+  theme_bw() +
+  theme(axis.text.y = element_text(size = 6),
+        axis.text.x = element_text(angle=45, vjust = 1, hjust=1),
+        legend.position = "bottom",
+        legend.key.height = unit(0.2, "cm")) +
+  labs(x="Method", y="Sample number") +
+  guides(fill=guide_legend(nrow=3, byrow=TRUE))
+```
+
+
+## Import Cq vs. 16S detection data
+```{r}
+cq16S <- read.table(here("R","16S-V3V4","Cq-vs-16S.txt"), header= TRUE)
+
+cq16S <- subset(cq16S, select = -c(Microbio))
+
+#Replace type labels
+cq16S["Type"][cq16S["Type"] == "Nat"] <- "Naturally contaminated"
+cq16S["Type"][cq16S["Type"] == "Spike"] <- "Spiked"
+
+#Melt dataframe
+cq16S.melt <- melt(cq16S, id.vars = c("Sample.Name","Type","Matrix","qPCR","V3V4.16S"))
+```
+
+
+```{r}
+cq16s.p <- ggplot(data=cq16S.melt, aes(x=V3V4.16S, y=value, shape=variable, fill=Type)) + 
+  geom_point(aes(x=factor(V3V4.16S)), size=3,alpha = 0.8) +
+  scale_shape_manual(values = c(23,22),
+                    labels = c("stn","invA")) +
+#  scale_fill_manual(values=c("red","blue")) + 
+  guides(fill = guide_legend(override.aes = list(shape = 21),
+         nrow = 2),
+        shape = guide_legend(nrow = 2, byrows = TRUE)) +
+  facet_grid(~Matrix) +
+  labs(x="16S detection result",
+       y="Cq value",
+       shape="Gene target") +
+  ylim(0,40) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.key.height = unit(0.2, "cm"),
+        legend.margin = margin(t = 0.2, unit = "cm"))
+```
+
+## Combine and export plots
+```{r}
+fig.cq16s_nc <- ggarrange(fig_nc +
+            theme(legend.position = "bottom"), 
+          cq16s.p +
+            theme(legend.position = "bottom",
+                  legend.box="vertical"), 
+          nrow=1,
+          labels = c("A","B"),
+          align = "h")
+
+ggsave("fig_cq16snc.png", fig.cq16s_nc, path = here("R"), width = 16, height = 15, units = "cm")
+```
+
+
+# Still need to fix+add BPW dilution plots!

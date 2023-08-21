@@ -1,0 +1,231 @@
+---
+title: "salmLOD-16S"
+author: "Lauren Bradford"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+# Load packages
+```{r}
+#General
+library(tidyverse)
+library(reshape2)
+#16S Data
+library(qiime2R)
+library(phyloseq)
+#Formatting plots
+library(egg)
+library(scales)
+#Directory management
+library(here)
+```
+
+# V4
+
+Import as phyloseq object
+```{r}
+ps4 <- qza_to_phyloseq(
+  features = here("R","16S-V4","both-table-merged.qza"),
+  taxonomy = here("R","16S-V4","both-taxonomy-merged.qza"),
+  metadata = here("R","16S-V4","both16S_manifest.tsv"))
+```
+
+## Plot diversity
+Plot alpha diversity with phyloseq's built-in function.
+```{r}
+box.shannon <- plot_richness(ps4, measures=c("Shannon"), x = "Matrix", color = "Condition") +  geom_boxplot() +
+  scale_color_manual(breaks=c("Direct","Enriched"),                                       labels=c("Unenriched","Enriched"),
+                     values=c("grey","black"))
+
+#Remove original layer (dots) from plot, leaving only box
+box.shannon$layers <- box.shannon$layers[-1]
+
+#Remove facet label, change theme
+box.shannon  <- box.shannon + labs(y = "Shannon diversity") +
+  theme_bw() +
+  theme(strip.text.x = element_blank(),
+        axis.text.x = element_text(angle=0, vjust = 1, hjust=0.5))
+
+box.shannon
+```
+
+## Calculate and plot relative abundance
+```{r}
+# Transform to relative counts
+ps4r = transform_sample_counts(ps4, function(x) x / sum(x) )
+```
+
+```{r}
+#Name list for conditions
+condnames <- as_labeller(c(Direct = "Unenriched", Enriched = "Enriched", Caeca = "Caecal contents", Feed = "Feed"))
+```
+
+
+### Whole community bar plot
+Filter out low-abundance taxa, then group them all together and add back in
+```{r}
+# Remove taxa with less than 10^-3 mean abundance across all samples
+ps4rf = filter_taxa(ps4r, function(x) mean(x) > 1e-3, TRUE)
+
+# Select only samples where both conditions were 16S sequenced
+ps4rfb = subset_samples(ps4rf, Both_cond_seq =="TRUE")
+
+#Also make a phyloseq object for all the removed taxa
+ps4r_low = filter_taxa(ps4r, function(x) mean(x) < 1e-3, TRUE)
+
+ps4r_lowb = subset_samples(ps4r_low, Both_cond_seq =="TRUE")
+
+#Merge low abundance taxa into one tax group, for plotting
+x1 <- merge_taxa(ps4r_lowb, taxa_names(ps4r_lowb))
+
+#Merge phyloseq objects together
+x2 <- merge_phyloseq(ps4rfb, x1)
+
+ntaxa(ps4rfb)
+ntaxa(x2)
+```
+
+Agglomerate the merged phyloseq object by Class, then create faceted stacked barchart.
+Low-abundance taxa (less than 10^-3 mean abundance across all samples) are labeled as NA in the legend.
+```{r}
+#Glom by class
+x2_cl <- tax_glom(x2, taxrank = "Class", NArm=FALSE)
+
+
+p_commcomp <- plot_bar(x2_cl, x = "Spike_code2", fill = "Class") +
+  facet_grid(Condition~Matrix, 
+             scales = "free",
+             space = "free_x",
+             labeller = condnames) +
+  ylim(0,1) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.3, hjust=1)) +
+  labs(y = "Relative abundance",
+       x = "Sample ID")
+
+p_commcomp  
+```
+
+## Export figures
+Community composition bar plot for supplementary
+```{r}
+ggsave("Fig_commcomp.png", p_commcomp, path = here("R","16S-V4"), width = 18, height = 15, units = "cm")
+```
+
+
+
+# V3-V4
+Import as phyloseq object
+```{r}
+ps34 <- qza_to_phyloseq(
+  features = here("R","16S-V3V4","table-filtered.qza"),
+  taxonomy = here("R","16S-V3V4","taxonomy.qza"),
+  metadata = here("R","16S-V3V4","salmspike_16SV3V4_metadata.txt"))
+```
+
+## Calculate and plot relative abundance
+```{r}
+#Drop the blank
+ps34 <- subset_samples(ps34, Spiked_CFU != "NA")
+
+# Transform to relative counts
+ps34r = transform_sample_counts(ps34, function(x) x / sum(x) )
+ntaxa(ps34r)
+```
+
+
+### Barplots
+#### Enterobacteriaceae only
+Plot relative abundance of enterobacteriaceae.
+```{r}
+ps34r.ent = subset_taxa(ps34r, Family == "Enterobacteriaceae")
+ps34r.ent = tax_glom(ps34r.ent, taxrank = "Genus", NArm=FALSE)
+
+# Stacked bar plot (Enterobacteriaceae only)
+bar.ent = plot_bar(ps34r.ent, x = "Spike_code2", fill = "Genus") + facet_grid(Condition~Matrix, 
+                     scales = "free", 
+                     space = "free_x",
+                     labeller = condnames) + 
+  ylim(0,1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90, vjust = 0.35, hjust=1)) +
+  labs(y = "Relative abundance",
+       x = "Sample ID")
+```
+
+
+#### Salmonella only
+Plot relative abundance of Salmonella genus
+```{r}
+ps34r.salm = subset_taxa(ps34r, Genus == "Salmonella")
+
+#Name list for conditions
+condnames <- as_labeller(c(Direct = "Unenriched", Enriched = "Enriched", Caeca = "Caecal contents", Feed = "Feed"))
+
+# Stacked bar plot (Enterobacteriaceae only)
+bar.salm = plot_bar(ps34r.salm, x = "Spike_code2", fill = "Genus") + facet_grid(Condition~Matrix, 
+                     scales = "free", 
+                     space = "free_x",
+                     labeller = condnames) + 
+  ylim(0,0.05) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=90, vjust = 0.35, hjust=1)) +
+  labs(y = "Relative abundance",
+       x = "Sample ID")
+```
+
+#### Bonus plot of spike levels
+```{r}
+spikes.df <- read.table(here("R","16S-V3V4","spike_levels.txt"), sep = "\t", header = TRUE )
+
+spikes.df = subset(spikes.df, select = c('Spike_code2','Matrix','Spiked_CFU'))
+
+spikes.p <- ggplot(spikes.df, aes(x=Spike_code2, y=Spiked_CFU)) + 
+  geom_bar(stat='identity', position="dodge") +
+  facet_grid(~Matrix, 
+             scales = "free",
+             space = "free_x") +
+  scale_y_continuous(trans = log10_trans(),
+    breaks = trans_breaks("log10", function(x) 10^x, n=4),
+    labels = trans_format("log10", math_format(10^.x))) +
+  labs(x = "SampleID",
+       y= "CFU\nspiked") +
+  theme_bw()
+```
+
+## Export figure
+Combo Enterobacteriaceae bar plot + Salmonella bar plot + diversity box plot
+```{r}
+Fig_16S <- ggarrange(bar.ent +
+                       theme(axis.text.x = element_blank(),
+                             axis.title.x = element_blank()), 
+                     bar.salm + 
+                       geom_bar(stat = "identity", 
+                                position = "stack", 
+                                color="black", 
+                                fill = "#C77CFF") +
+                       theme(axis.text.x = element_blank(),
+                             axis.title.x = element_blank(),
+                             strip.text.x = element_blank(),
+                             legend.position = "none"), 
+                     spikes.p + 
+                               theme(strip.text.x = element_blank(),
+                                     axis.text.x = element_text(size = 9, 
+                                                                angle = 90, 
+                                                                vjust = 0.5, hjust=1),
+                                     axis.text.y = element_text(size = 10)),
+                     ncol = 1,
+                     labels = c("A","B", "C"),
+                     heights = c(1,0.8,0.2))
+Fig_16S
+
+ggsave("Fig_16S.png", Fig_16S, path = here("R","V3V4-16S"), width = 18, height = 14, units = "cm")
+```
+
