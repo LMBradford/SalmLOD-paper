@@ -1,0 +1,29 @@
+#This file contains information needed by Snakefile 
+#To run the caecaspike workflow
+#Info provided for all steps (chicken removal, main workflow, summarizing)
+#Adjust the information in this file to reflect the working environment
+
+
+#Input files location
+pathtoinput: "/home/bradford/scratch/Feedspike/Shotgun/Raw/BPW/"
+
+projID: "FS"
+seqtype: "shotgun"
+
+#projID: "CS"
+#seqtype: "ShotSeq"
+
+#Database locations
+##For host removal
+hostdb: "/home/bradford/projects/def-alexwong/bradford/Kr_chicken_db/kr2chicken"
+#hostdb: "/home/bradford/projects/def-alexwong/bradford/Kr_cplant_db/kr2plant"
+
+##For main workflow
+dbs:
+  kr2bac: "/home/bradford/projects/def-alexwong/bradford/Kraken_dbs/kr2bac" 
+
+samSSR_db: "/home/bradford/projects/def-alexwong/bradford/Blast_dbs/SalmSSR_db/SalmSSRs"
+
+#Confidence levels for Kraken2
+confidence: 0.25
+
