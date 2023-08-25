@@ -1,9 +1,17 @@
 This repo holds the code used in Bradford et al.'s *Limit of detection of Salmonella ser. Enteritidis using culture-based versus culture-independent diagnostic approaches*.
 
-#Shotgun Sequencing Analysis
+# Shotgun Sequencing Analysis
 Analysis of shotgun sequencing datasets is based on the pipeline established in Bradford et al.'s An Optimized Pipeline for Detection of Salmonella Sequences in Shotgun Metagenomics Datasets (BioRxiv: https://doi.org/10.1101/2023.07.27.550528). It is run through a series of custom snakemake workflows and designed to be submitted via SLURM commands on the Digital Alliance of Canada (formerly Compute Canada) HPC system. While it would be possible to run the whole workflow in a single snakemake file, it is instead divided into a few steps to make more responsible use of Compute Canada resources.
 
 Directory setup:
+In addition to the directories in this repo, add:
+
+slurm/logs #Log files from SLURM submissions.
+Library #Raw fastq files
+Summary #Run summarizing scripts here
+
+Other directories will be created during the snakemake workflows.
+
 
 
 ## Preparation steps
@@ -27,8 +35,8 @@ This is memory-light but time-intensive. The default slurm submission asks for 2
 ## Step 2: Remove host reads, annotate remaining reads with Kraken2, extract putative Salmonella reads and check them against SSRs
 
 For Feedspike project:
-`sbatch SLURM_step2.sh` #Edit file to generalize!
-Submits a job based on snakefile_step2.py #Edit file to generalize!
+`sbatch SLURM_step2.sh`
+Submits a job based on snakefile_step2.py
 
 Note that the host database is copied into SLURM_TMPDIR. This is much more efficent, but means that the database used by subsequent steps is considered "new" by snakemake each time, so host removal steps are repeated if any part of the analysis has to be repeated. This loses some of the functionality of snakemake.
 
